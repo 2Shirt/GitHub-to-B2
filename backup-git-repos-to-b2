@@ -1,0 +1,100 @@
+#!/bin/bash
+
+# Script to backup git repo(s) to Backblaze B2
+
+script_name="$(basename "${0}")"
+
+# Usage
+read -r -d '' __usage <<-'EOF' || true
+Usage: backup-git-repos-to-b2 [options] repo(s)...
+
+Options:
+  -b --b2-bucket       [arg] Backblaze B2 bucket name. Required.
+  -i --b2-id           [arg] Backblaze B2 account ID. Required.
+  -k --b2-key          [arg] Backblaze B2 application key. Required.
+  -g --github-account  [arg] GitHub account name. Required.
+  -t --temp-dir        [arg] Dir to use for temp files.
+
+  -h --help            This page.
+EOF
+
+# Help text
+__helptext='NOTE: --temp-dir defaults to "$(mktemp -d)" if not specified.'
+
+source bash3boilerplate/main.sh
+
+b2_bucket="${arg_b}"
+b2_cmd="b2"
+b2_id="${arg_i}"
+b2_key="${arg_k}"
+date="$(date '+%F_%H%M%z')"
+github_account="${arg_g}"
+temp_dir="${arg_t:-}"
+if [[ "$temp_dir" == "" ]]; then
+    temp_dir="$(mktemp -d)"
+fi
+
+# Check for backblaze-b2
+# Check for b2 cmd
+if which backblaze-b2 >/dev/null 2>&1; then
+    # Arch Linux uses this name
+    b2_cmd="backblaze-b2"
+elif ! which b2 > /dev/null 2>&1; then
+    echo "Error B2 command-line tool not found"
+    exit 1
+fi
+
+# Setup repository to ${1}
+repository="${1}"
+if [[ "${repository: -4:4}" == ".git" ]]; then
+    repository="${repository:0: -4}"
+fi
+
+# Create the backup directory
+mkdir -p "${temp_dir}"
+pushd "${temp_dir}" > /dev/null
+
+echo "Backing up ${repository}"
+
+git clone --mirror --verbose \
+    "https://github.com/${github_account}/${repository}.git" \
+    "${repository}-${date}.git"
+if [ $? -ne 0 ]; then
+    echo "Error cloning ${repository}"
+    exit 1
+fi
+
+tar cpzf "${repository}-${date}.git.tgz" "${repository}-${date}.git"
+if [ $? -ne 0 ]; then
+    echo "Error compressing ${repository}"
+    exit 1
+fi
+
+# Authorize B2 account
+"${b2_cmd}" authorize-account "${b2_id}" "${b2_key}"
+if [ $? -ne 0 ]; then
+    echo "Error authorizing Backblaze B2 account"
+    exit 1
+fi
+
+if [[ -f "${repository}-${date}.git.tgz" ]]; then
+    "${b2_cmd}" upload-file "${b2_bucket}" \
+        "${repository}-${date}.git.tgz" \
+        "${github_account}/${repository}-${date}.git.tgz"
+fi
+
+if [ $? -ne 0 ]; then
+    echo "Error uploading ${repository} to Backblaze B2"
+    exit 1
+fi
+
+#delete tar file and checked out folder
+/bin/rm "${temp_dir}/${repository}-${date}.git.tgz"
+/bin/rm -rf "${temp_dir}/${repository}-${date}.git"
+if [ $? -ne 0 ]; then
+    echo "Error removing temp files"
+    exit 1
+fi
+
+popd > /dev/null
+echo "Succesfully backed up ${repository}"
