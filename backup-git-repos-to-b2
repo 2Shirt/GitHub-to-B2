@@ -19,7 +19,9 @@ __helptext='NOTE: --temp-dir defaults to "$(mktemp -d)" if not specified.'
 source bash3boilerplate/main.sh
 
 # Color fix for rxvt-unicode (tell b3bp we're xterm)
-TERM="xterm"
+if [[ "${TERM}" =~ rxvt-unicode-.*color ]]; then
+  TERM="xterm"
+fi
 
 # Functions
 function compress_repository() {
