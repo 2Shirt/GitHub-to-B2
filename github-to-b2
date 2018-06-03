@@ -9,11 +9,11 @@ Options:
   -i --b2-id           [arg] Backblaze B2 account ID.
   -k --b2-key          [arg] Backblaze B2 application key.
   -g --github-account  [arg] GitHub account name.
-  -t --temp-dir        [arg] Dir to use for temp files.
   -p --https-password  [arg] GitHub account password (for private repos)
-  -s --use-https       Use HTTPS to clone instead of SSH
+  -t --temp-dir        [arg] Dir to use for temp files.
+  -s --use-https             Use HTTPS to clone instead of SSH
 
-  -h --help            This page.
+  -h --help                  This page.
 EOF
 __helptext='NOTE: --temp-dir defaults to "$(mktemp -d)" if not specified.'
 
