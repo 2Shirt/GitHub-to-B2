@@ -7,7 +7,7 @@ This is the process:
 * Download the specified repo to a temporary directory.
 * Compress the repo using tar/gzip
 * Upload the compressed archive.
-* Delete the repo from the temp dir.
+* Delete the archive and repo from the temp dir.
 * Repeat above steps for any additional specified repos.
 * Delete the temp dir itself (if empty).
 
