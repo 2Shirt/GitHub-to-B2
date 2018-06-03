@@ -10,6 +10,8 @@ Options:
   -k --b2-key          [arg] Backblaze B2 application key.
   -g --github-account  [arg] GitHub account name.
   -t --temp-dir        [arg] Dir to use for temp files.
+  -p --https-password  [arg] GitHub account password (for private repos)
+  -s --use-https       Use HTTPS to clone instead of SSH
 
   -h --help            This page.
 EOF
@@ -24,6 +26,26 @@ if [[ "${TERM}" =~ rxvt-unicode-.*color ]]; then
 fi
 
 # Functions
+function clone_repository() {
+  # Clone the repo using either HTTPS or SSH
+  local repo="${1:-}"
+  local repo_url=""
+  if [[ "${arg_s}" == "1" ]]; then
+    # Use HTTPS
+    repo_url="github.com/${__github_account}/${repo}.git"
+    if [[ "${arg_p:-}" != "" ]]; then
+      repo_url="https://${__github_account}:${arg_p}@${repo_url}"
+    else
+      repo_url="https://${repo_url}"
+    fi
+  else
+    # Use SSH
+    repo_url="git@github.com:${__github_account}/${repo}.git"
+  fi
+  git clone --mirror \
+    "${repo_url}" \
+    "${__temp_dir}/${repo}-${__date}.git"
+}
 function compress_repository() {
   # Move to repository dir so relative paths are used in the archive
   local repo_source="${1:-}"
@@ -59,23 +81,11 @@ function fix_repository_name() {
   echo "${repository}"
 }
 function main() {
-  # Set env
-  local b2_bucket="${arg_b}"
-  local b2_cmd="$(find_b2_cmd)"
-  local b2_id="${arg_i}"
-  local b2_key="${arg_k}"
-  local date="$(date '+%F_%H%M%z')"
-  local github_account="${arg_g}"
-  local temp_dir="${arg_t:-}"
-  if [[ "$temp_dir" == "" ]]; then
-    temp_dir="$(mktemp -d)"
-  fi
-  
-  # Create the temp_dir
-  mkdir -p "${temp_dir}"
+  # Create the __temp_dir
+  mkdir -p "${__temp_dir}"
 
   # Authorize B2 account
-  "${b2_cmd}" authorize-account "${b2_id}" "${b2_key}"
+  "${__b2_cmd}" authorize-account "${__b2_id}" "${__b2_key}"
 
   # Loop over repos
   for repo in "${@}"; do
@@ -85,32 +95,42 @@ function main() {
 
     # Clone repo
     echo "Cloning ${repo}"
-    git clone --mirror \
-      "https://github.com/${github_account}/${repo}.git" \
-      "${temp_dir}/${repo}-${date}.git"
+    clone_repository "${repo}"
 
     # Compress repo
     echo "Compressing ${repo}"
-    compress_repository "${temp_dir}/${repo}-${date}.git" \
-      "${temp_dir}/${repo}-${date}.git.tgz"
+    compress_repository "${__temp_dir}/${repo}-${__date}.git" \
+      "${__temp_dir}/${repo}-${__date}.git.tgz"
 
     # Upload repo
     echo "Uploading ${repo}"
-    "${b2_cmd}" upload-file "${b2_bucket}" \
-      "${temp_dir}/${repo}-${date}.git.tgz" \
-      "${github_account}/${repo}-${date}.git.tgz"
+    "${__b2_cmd}" upload-file "${__b2_bucket}" \
+      "${__temp_dir}/${repo}-${__date}.git.tgz" \
+      "${__github_account}/${repo}-${__date}.git.tgz"
 
     # Cleanup
-    /bin/rm "${temp_dir}/${repo}-${date}.git.tgz"
-    /bin/rm -rf "${temp_dir}/${repo}-${date}.git"
+    /bin/rm "${__temp_dir}/${repo}-${__date}.git.tgz"
+    /bin/rm -rf "${__temp_dir}/${repo}-${__date}.git"
     
     # Done
     echo "Successfully backed up ${repo}"
   done
 
-  # Remove temp_dir (if empty)
-  /bin/rmdir --ignore-fail-on-non-empty "${temp_dir}"
+  # Remove __temp_dir (if empty)
+  /bin/rmdir --ignore-fail-on-non-empty "${__temp_dir}"
 }
+
+# Set env
+__b2_bucket="${arg_b}"
+__b2_cmd="$(find_b2_cmd)"
+__b2_id="${arg_i}"
+__b2_key="${arg_k}"
+__date="$(date '+%F_%H%M%z')"
+__github_account="${arg_g}"
+__temp_dir="${arg_t:-}"
+if [[ "$__temp_dir" == "" ]]; then
+  __temp_dir="$(mktemp -d)"
+fi
 
 # Check args
 __run="yes"
@@ -122,6 +142,21 @@ if [[ "${arg_h}" == "0" ]]; then
   [[ -z "${arg_g:-}" ]] && echo "GitHub account not specified" && __run="no"
   [[ "${#}" == "0" ]] && echo "No repos specified" && __run="no"
 fi
+
+# Debug
+#echo "== Debug =="
+#echo "b: [${arg_b}]"
+#echo "i: [${arg_i}]"
+#echo "k: [${arg_k}]"
+#echo "g: [${arg_g}]"
+#echo "t: [${arg_t}]"
+#echo "p: [${arg_p}]"
+#echo ""
+#echo "s: [${arg_s}]"
+#echo "h: [${arg_h}]"
+#echo ""
+#echo "r: [${@}]"
+#echo "== Debug =="
 
 # Show help or run backups
 if [[ "${arg_h}" = 1 ]] || [[ "${__run}" == "no" ]]; then
