@@ -30,3 +30,7 @@ The resulting script is likely overkill for most use-cases. It was written as an
 * Removed optional file encryption section from source gist.
   * It wouldn't work as expected as it would encrypt the repo but then upload the non-encrypted copy instead.
   * If encryption was going to be used, I would not recommend using a symmetric cipher.
+
+## Credit ##
+Nilay Patel, for git-backup-to-Backblaze-B2.sh which this script is based on.
+https://gist.github.com/nilayp/a2719ca5695c1d5a56c556e89207577d
