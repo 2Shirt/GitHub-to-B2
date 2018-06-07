@@ -15,8 +15,6 @@ This is the process:
 
 I wanted to apply safer shell practices to [this gist](https://gist.github.com/nilayp/a2719ca5695c1d5a56c556e89207577d) which was featured in [this blog entry](https://www.backblaze.com/blog/backing-up-github-to-cloud-storage/) by Backblaze. Work started as a fork of the gist [here](https://gist.github.com/2Shirt/6270696b857cecdf4a6d0d4f4fedeb3b) but I wanted to support backing up multiple repositories at a time. So I decided to make a full project so I could use features from the [BASH3 Boilerplate](http://bash3boilerplate.sh/).
 
-The resulting script is likely overkill for most use-cases. It was written as an opportunity to play with the BASH3 Boilerplate.
-
 ## Changes / Improvements ##
 
 * All variables can be passed as arguments.
